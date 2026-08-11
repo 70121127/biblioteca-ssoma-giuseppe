@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Biblioteca SSOMA</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f3f5f7;
+            color: #1d2630;
+        }
+
+        header {
+            background: #123c69;
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        header p {
+            margin-bottom: 0;
+            opacity: 0.9;
+        }
+
+        .contenedor {
+            max-width: 900px;
+            margin: auto;
+            padding: 25px 20px;
+        }
+
+        .buscador {
+            width: 100%;
+            padding: 16px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 25px;
+        }
+
+        .documento {
+            background: white;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .documento h3 {
+            margin-top: 0;
+        }
+
+        .categoria {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .boton {
+            display: inline-block;
+            background: #123c69;
+            color: white;
+            padding: 11px 18px;
+            border-radius: 8px;
+            text-decoration: none;
+            margin-top: 8px;
+        }
+
+        .boton:hover {
+            opacity: 0.9;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<header>
+
+    <h1>📚 Biblioteca SSOMA</h1>
+
+    <p>
+        Documentos, estándares y procedimientos
+    </p>
+
+</header>
+
+
+<div class="contenedor">
+
+    <input
+        type="text"
+        id="buscador"
+        class="buscador"
+        placeholder="🔎 Buscar documento..."
+    >
+
+
+    <div class="documento">
+
+        <h3>📄 PETS - Trabajo en altura</h3>
+
+        <div class="categoria">
+            Categoría: PETS
+        </div>
+
+        <p>
+            Procedimiento escrito de trabajo seguro.
+        </p>
+
+        <a
+            class="boton"
+            href="#"
+            target="_blank">
+
+            Abrir PDF →
+
+        </a>
+
+    </div>
+
+
+    <div class="documento">
+
+        <h3>🛡️ Estándar RC-12</h3>
+
+        <div class="categoria">
+            Categoría: Estándares
+        </div>
+
+        <p>
+            Atropello de personas por equipo o vehículo.
+        </p>
+
+        <a
+            class="boton"
+            href="#"
+            target="_blank">
+
+            Abrir PDF →
+
+        </a>
+
+    </div>
+
+
+    <div class="documento">
+
+        <h3>📑 Anexo 05</h3>
+
+        <div class="categoria">
+            Categoría: Anexos
+        </div>
+
+        <p>
+            Cambio de frente.
+        </p>
+
+        <a
+            class="boton"
+            href="#"
+            target="_blank">
+
+            Abrir PDF →
+
+        </a>
+
+    </div>
+
+</div>
+
+
+<script>
+
+    const buscador = document.getElementById("buscador");
+
+    buscador.addEventListener("keyup", function() {
+
+        const texto = buscador.value.toLowerCase();
+
+        const documentos =
+            document.querySelectorAll(".documento");
+
+        documentos.forEach(function(documento) {
+
+            const contenido =
+                documento.innerText.toLowerCase();
+
+            if (contenido.includes(texto)) {
+
+                documento.style.display = "block";
+
+            } else {
+
+                documento.style.display = "none";
+
+            }
+
+        });
+
+    });
+
+</script>
+
+</body>
+
+</html>D
