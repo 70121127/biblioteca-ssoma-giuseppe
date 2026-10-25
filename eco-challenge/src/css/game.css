@@ -118,10 +118,10 @@
 .qr { width: 100%; max-width: 180px; image-rendering: pixelated; }
 .qr-big { max-width: 340px; }
 .join-box-small { padding: 0.8rem; }
-.side-join { position: fixed; right: 12px; bottom: 12px; width: 190px; z-index: 30; opacity: 0.95; }
-.side-join .join-url { font-size: 0.7rem; }
-.side-join .code-small { font-size: 1.4rem; }
-.side-join .qr { max-width: 120px; }
+.side-join .join-box { display: grid; grid-template-columns: auto auto; grid-template-areas: "url qr" "code qr"; align-items: center; gap: 0 0.6rem; padding: 0.4rem 0.6rem; }
+.side-join .join-url { grid-area: url; font-size: 0.75rem; margin: 0; }
+.side-join .code-small { grid-area: code; font-size: 1.5rem; }
+.side-join .qr { grid-area: qr; max-width: 90px; }
 .player-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; max-height: 60vh; overflow: auto; }
 .player-chips li { display: inline-flex; align-items: center; gap: 0.35em; background: #eef4fb; border-radius: 999px; padding: 0.3em 0.4em 0.3em 0.8em; font-weight: 700; }
 .player-chips .dot { width: 9px; height: 9px; border-radius: 50%; background: #2e9e44; }
@@ -135,6 +135,7 @@
 .host-timer.low { color: var(--danger); }
 .host-progress { font-size: 1.15rem; font-weight: 700; }
 .toggle { flex-direction: row; align-items: center; font-weight: 600; margin-left: auto; }
+.side-join { flex: none; }
 .round-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; margin-top: 0.8rem; }
 .round-grid.with-ranking { grid-template-columns: 2fr 1fr; }
 .host-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.8rem; }

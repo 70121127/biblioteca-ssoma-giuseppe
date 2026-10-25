@@ -356,13 +356,13 @@ function renderGame() {
     body.push(
       h('div', { class: 'round-top' }, view.timer, view.progress,
         h('label', { class: 'toggle' }, h('input', { type: 'checkbox', checked: showLiveRanking,
-          onchange: (e) => { showLiveRanking = e.target.checked; renderGame(); } }), ' Mostrar ranking en vivo')),
+          onchange: (e) => { showLiveRanking = e.target.checked; renderGame(); } }), ' Mostrar ranking en vivo'),
+        h('div', { class: 'side-join' }, qrBlock(g.code, false))),
       view.bar,
       h('div', { class: showLiveRanking ? 'round-grid with-ranking' : 'round-grid' },
         h('section', { class: 'card' }, items, view.overlay),
         showLiveRanking ? h('section', { class: 'card' }, h('h3', {}, '🏆 Ranking en vivo'), view.ranking = h('div')) : null),
-      h('section', { class: 'card' }, h('div', { class: 'bins-legend bins-host' }, hs.bins.map((b) => binBadge(b)))),
-      h('div', { class: 'side-join' }, qrBlock(g.code, false)));
+      h('section', { class: 'card' }, h('div', { class: 'bins-legend bins-host' }, hs.bins.map((b) => binBadge(b)))));
   } else if (g.status === 'between_rounds') {
     body.push(
       h('div', { class: 'round-grid with-ranking' },
