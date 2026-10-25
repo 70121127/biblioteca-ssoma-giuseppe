@@ -208,6 +208,14 @@ Las pruebas SQL/E2E usan un *stub* mínimo de los esquemas `auth` y `storage` de
 | 100 | 800 | 160 | 3,2 ms | 63 ms | 93 ms |
 | 200 | 1600 | 320 | 3,0 ms | 115 ms | 181 ms |
 
+**En el proyecto Supabase real `ssoma-eco-challenge`** (25/10/2026, prueba ejecutada dentro de la base de datos y deshecha al final; sin red ni Realtime):
+
+| Participantes | Respuestas registradas | Duplicados rechazados | Ranking correcto | ms por respuesta | ms `player_state` | ms panel instructor |
+|---|---|---|---|---|---|---|
+| 50 | 400/400 | 80 | ✅ | 0,26 | 1,20 | 4,0 |
+| 100 | 800/800 | 160 | ✅ | 0,23 | 1,17 | 4,4 |
+| 200 | 1600/1600 | 320 | ✅ | 0,23 | 1,59 | 7,6 |
+
 Son tiempos de base de datos sin la latencia de Internet. **Pendiente:** ejecutar `test:load:supabase` con 50, 100 y 200 bots contra el proyecto real antes de la primera capacitación masiva.
 
 ### Límites del plan de Supabase a tener en cuenta
