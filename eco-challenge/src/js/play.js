@@ -1,6 +1,6 @@
 // Pantalla del participante (celular).
 import { configError, rpc, timedRpc } from './supabase.js';
-import { h, $, clear, toast, renderConfigError, wasteImage, binBadge, scopeLabel } from './ui.js';
+import { h, $, clear, toast, renderConfigError, wasteImage, binBadge, scopeLabel, appUrl } from './ui.js';
 import { friendlyError, errorCode, isNetworkError } from './errors.js';
 import { ServerClock, roundTimer, formatSeconds } from './clock.js';
 import { joinGameChannel } from './realtime.js';
@@ -138,7 +138,7 @@ function renderJoin(message) {
       btn.disabled = false;
     }
   } },
-  h('div', { class: 'brand' }, h('img', { src: '/img/logo.svg', alt: '', class: 'brand-logo' }),
+  h('div', { class: 'brand' }, h('img', { src: appUrl('/img/logo.svg'), alt: '', class: 'brand-logo' }),
     h('div', {}, h('h1', {}, 'SSOMA Eco Challenge'), h('p', { class: 'muted' }, 'Segregación de residuos · NTP 900.058:2019'))),
   h('label', {}, 'Código de partida', code),
   h('label', {}, 'Alias', alias),

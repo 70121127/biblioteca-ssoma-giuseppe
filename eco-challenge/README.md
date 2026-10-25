@@ -130,7 +130,25 @@ Cada banco de preguntas y cada partida pertenecen a **un solo ámbito**; la base
 
 Para desarrollo local copie `.env.example` como `.env` y complete los valores. Si las variables faltan, la aplicación muestra "Configuración pendiente" (no simula ninguna conexión).
 
-## 4. Publicación en Cloudflare Pages
+## 4. Publicación
+
+### Opción actual: GitHub Pages (sin configuración adicional)
+
+El repositorio ya publica la Biblioteca SSOMA con GitHub Pages desde la rama `main`. El juego compilado vive en la carpeta `eco/` de la raíz y queda disponible en:
+
+**https://70121127.github.io/biblioteca-ssoma-giuseppe/eco/**
+
+Para actualizarlo después de cambiar el código:
+
+```bash
+cd eco-challenge
+npm run build:pages     # compila en ../eco usando .env.production
+git add ../eco && git commit -m "Actualiza juego" && git push
+```
+
+`.env.production` contiene la URL y la clave **publishable** del proyecto Supabase `ssoma-eco-challenge` (valores públicos). GitHub Pages no aplica `public/_headers`; si necesita esas cabeceras de seguridad, use Cloudflare Pages.
+
+### Alternativa: Cloudflare Pages
 
 1. Cloudflare → **Workers & Pages → Create → Pages → Connect to Git** y elija este repositorio.
 2. Configuración de compilación:

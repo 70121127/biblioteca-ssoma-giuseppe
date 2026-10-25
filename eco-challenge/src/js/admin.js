@@ -40,7 +40,7 @@ function renderNav() {
   if (isAdmin()) tabs.push(['staff', '👤 Personal']);
   clear(nav).append(
     ...tabs.map(([id, label]) => h('button', { class: `btn btn-ghost ${tab === id ? 'active' : ''}`, onclick: () => { tab = id; route(); } }, label)),
-    h('a', { class: 'btn btn-ghost', href: '/instructor.html' }, '🎮 Panel del instructor'),
+    h('a', { class: 'btn btn-ghost', href: 'instructor.html' }, '🎮 Panel del instructor'),
     h('span', { class: 'muted small nav-user' }, `${staff.user.email} · ${staff.role}`),
     h('button', { class: 'btn btn-ghost', onclick: logout }, 'Salir'));
 }

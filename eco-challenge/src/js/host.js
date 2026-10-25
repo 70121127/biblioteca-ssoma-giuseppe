@@ -37,7 +37,8 @@ function savedGame(id) {
 }
 
 function joinUrl(code) {
-  return `${publicSiteUrl || location.origin}/jugar.html?code=${encodeURIComponent(code)}`;
+  const base = publicSiteUrl ? `${publicSiteUrl}/jugar.html` : new URL('jugar.html', document.baseURI).href;
+  return `${base}?code=${encodeURIComponent(code)}`;
 }
 
 // ---------------------------------------------------------------------
@@ -47,7 +48,7 @@ function renderNav() {
   clear(nav).append(
     h('button', { class: 'btn btn-ghost', onclick: () => openNewGame() }, '➕ Nueva partida'),
     h('button', { class: 'btn btn-ghost', onclick: () => openHistory() }, '🗂️ Historial'),
-    h('a', { class: 'btn btn-ghost', href: '/admin.html' }, '🖼️ Banco de residuos'),
+    h('a', { class: 'btn btn-ghost', href: 'admin.html' }, '🖼️ Banco de residuos'),
     h('span', { class: 'muted small nav-user' }, `${staff.user.email} · ${staff.role}`),
     h('button', { class: 'btn btn-ghost', onclick: logout }, 'Salir'));
 }

@@ -14,7 +14,8 @@
     "test:sql": "node --test --test-concurrency=1 'tests/sql/*.test.mjs'",
     "test:load:db": "node tests/load/simulate-db.mjs",
     "test:load:supabase": "node tests/load/simulate-supabase.mjs",
-    "test:e2e": "node tests/e2e/run-e2e.mjs"
+    "test:e2e": "node tests/e2e/run-e2e.mjs",
+    "build:pages": "vite build --outDir ../eco --emptyOutDir"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.0",

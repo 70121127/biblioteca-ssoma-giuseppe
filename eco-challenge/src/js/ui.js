@@ -68,10 +68,20 @@ export function formatDate(iso) {
   return new Date(iso).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' });
 }
 
+/**
+ * Resuelve rutas propias del sitio ("/img/...") respecto a la carpeta de la
+ * aplicación, para que funcione tanto en la raíz de un dominio como en una
+ * subcarpeta (p. ej. GitHub Pages). Las URL https:// se devuelven igual.
+ */
+export function appUrl(path) {
+  if (!path || !path.startsWith('/') || path.startsWith('//')) return path;
+  return new URL(`.${path}`, document.baseURI).href;
+}
+
 /** Imagen con texto alternativo y respaldo si no carga. */
 export function wasteImage(url, name, cls = 'waste-img') {
-  const img = h('img', { class: cls, src: url, alt: name, loading: 'eager', decoding: 'async', draggable: 'false' });
-  img.addEventListener('error', () => { img.src = '/img/residuos/sin-imagen.svg'; }, { once: true });
+  const img = h('img', { class: cls, src: appUrl(url), alt: name, loading: 'eager', decoding: 'async', draggable: 'false' });
+  img.addEventListener('error', () => { img.src = appUrl('/img/residuos/sin-imagen.svg'); }, { once: true });
   return img;
 }
 
