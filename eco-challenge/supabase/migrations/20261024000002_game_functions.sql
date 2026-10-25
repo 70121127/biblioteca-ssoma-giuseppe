@@ -5,15 +5,18 @@
 
 -- Margen de latencia de red aceptado después de que el cronómetro llega a 0.
 create or replace function public._grace()
-returns interval language sql immutable as $$ select interval '1 second' $$;
+returns interval language sql immutable set search_path = public, pg_temp
+as $$ select interval '1 second' $$;
 
 -- Cuenta regresiva "¡Prepárate!" antes de que empiece a correr el tiempo:
 -- compensa la latencia con la que cada celular recibe el inicio de ronda.
 create or replace function public._lead_in()
-returns interval language sql immutable as $$ select interval '3 seconds' $$;
+returns interval language sql immutable set search_path = public, pg_temp
+as $$ select interval '3 seconds' $$;
 
 create or replace function public._token_hash(p_token text)
-returns bytea language sql immutable as $$ select sha256(convert_to(coalesce(p_token, ''), 'UTF8')) $$;
+returns bytea language sql immutable set search_path = public, pg_temp
+as $$ select sha256(convert_to(coalesce(p_token, ''), 'UTF8')) $$;
 
 -- ---------------------------------------------------------------------
 -- Ayudantes internos
