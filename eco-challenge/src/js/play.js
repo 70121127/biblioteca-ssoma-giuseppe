@@ -1,6 +1,6 @@
 // Pantalla del participante (celular).
 import { configError, rpc, timedRpc } from './supabase.js';
-import { h, $, clear, toast, renderConfigError, wasteImage, binBadge, scopeLabel, appUrl } from './ui.js';
+import { h, $, clear, toast, renderConfigError, wasteImage, binBadge, appUrl, THEMES } from './ui.js';
 import { friendlyError, errorCode, isNetworkError } from './errors.js';
 import { ServerClock, roundTimer, formatSeconds } from './clock.js';
 import { joinGameChannel } from './realtime.js';
@@ -139,7 +139,7 @@ function renderJoin(message) {
     }
   } },
   h('div', { class: 'brand' }, h('img', { src: appUrl('/img/logo.svg'), alt: '', class: 'brand-logo' }),
-    h('div', {}, h('h1', {}, 'SSOMA Eco Challenge'), h('p', { class: 'muted' }, 'Segregación de residuos · NTP 900.058:2019'))),
+    h('div', {}, h('h1', {}, 'SSOMA Challenge'), h('p', { class: 'muted' }, 'Residuos sólidos · Riesgos críticos'))),
   h('label', {}, 'Código de partida', code),
   h('label', {}, 'Alias', alias),
   h('p', { class: 'muted small' }, 'Usa un alias: no se solicitan datos personales.'),
@@ -173,11 +173,18 @@ function render() {
   if (board) updateBoard();
 }
 
+function words() {
+  const theme = state?.game?.theme === 'riesgos' ? 'riesgos' : 'residuos';
+  return { ...THEMES[theme], closing: theme === 'riesgos'
+    ? 'Gracias por participar. ¡Verifica los controles críticos antes de cada tarea!'
+    : 'Gracias por participar. ¡Segrega correctamente también en tu área de trabajo!' };
+}
+
 function header() {
   return h('header', { class: 'player-head' },
     h('span', { class: 'chip' }, `👤 ${state.player.alias}`),
     h('span', { class: 'chip' }, `🔢 ${state.game.code}`),
-    h('span', { class: 'chip' }, `📍 ${scopeLabel(state.game.scope)}`));
+    h('span', { class: 'chip' }, `📍 ${state.game.scope_name || state.game.scope}`));
 }
 
 function renderLobby() {
@@ -185,12 +192,12 @@ function renderLobby() {
   clear(app).append(
     header(),
     h('section', { class: 'card center' },
-      h('div', { class: 'big-emoji', 'aria-hidden': 'true' }, '♻️'),
+      h('div', { class: 'big-emoji', 'aria-hidden': 'true' }, words().icon),
       h('h2', {}, `¡Estás dentro, ${state.player.alias}!`),
       h('p', {}, 'Espera a que el instructor inicie la ronda.'),
-      h('p', { class: 'muted' }, `Ámbito ${scopeLabel(state.game.scope)} · ${state.game.total_rounds} ronda(s) · ${state.game.round_duration_s} s por ronda`)),
+      h('p', { class: 'muted' }, `${words().name} · ${state.game.scope_name || state.game.scope} · ${state.game.total_rounds} ronda(s) · ${state.game.round_duration_s} s por ronda`)),
     h('section', { class: 'card' },
-      h('h3', {}, 'Conoce los contenedores'),
+      h('h3', {}, `Conoce los ${words().bins}`),
       h('div', { class: 'bins-legend' }, state.bins.map((b) => {
         const el = binBadge(b, { cls: 'bin bin-legend' });
         el.append(h('span', { class: 'bin-desc' }, b.description));
@@ -222,7 +229,7 @@ function renderBoard() {
   const progress = h('span', { class: 'chip' }, '');
   const score = h('span', { class: 'chip chip-score' }, '');
   const feedback = h('div', { class: 'feedback', role: 'status', 'aria-live': 'polite' },
-    'Arrastra cada residuo a su contenedor, o tócalo y luego toca el contenedor.');
+    `${state.game.prompt || `Arrastra cada ${words().item} a su ${words().bin}.`} También puedes tocarlo y luego tocar el destino.`);
   const overlay = h('div', { class: 'overlay', hidden: true });
 
   const items = shuffle(r.items, seededRandom(session.token + r.id));
@@ -240,7 +247,7 @@ function renderBoard() {
   const bins = h('div', { class: `bins-dock bins-${state.bins.length}` },
     state.bins.map((b) => binBadge(b, { tag: 'button', type: 'button', cls: 'bin bin-target', 'aria-label': `Contenedor ${b.color_name}: ${b.label}` })));
 
-  const boardEl = h('section', { class: 'board' },
+  const boardEl = h('section', { class: `board theme-${state.game.theme || 'residuos'}` },
     h('div', { class: 'board-head' },
       h('div', { class: 'timer' }, h('span', { class: 'timer-icon', 'aria-hidden': 'true' }, '⏱️'), timerText),
       h('span', { class: 'chip' }, `Ronda ${r.round_no}/${state.game.total_rounds}`),
@@ -330,7 +337,7 @@ function showFeedback(res) {
   } else if (res.is_correct === false) {
     const b = binByCode(res.correct_bin);
     f.classList.add('feedback-bad');
-    f.textContent = `❌ Correspondía al contenedor ${b?.color_name ?? ''} (${b?.label ?? ''}). ${res.explanation ?? ''}`;
+    f.textContent = `❌ Correspondía a: ${b?.color_name ?? ''} – ${b?.label ?? ''}. ${res.explanation ?? ''}`;
   } else {
     f.classList.add('feedback-neutral');
     f.textContent = '📝 Respuesta registrada. Verás los resultados al terminar la ronda.';
@@ -369,7 +376,7 @@ function tick() {
   if (t.phase === 'leadin') overlay = ['¡Prepárate!', String(Math.ceil(t.leadInMs / 1000))];
   else if (t.phase === 'paused') overlay = ['⏸️ Pausa', 'El instructor pausó la ronda'];
   else if (t.phase === 'ended') overlay = ['⏰ ¡Tiempo!', 'Respuestas bloqueadas. Calculando resultados…'];
-  else if (allDone) overlay = ['🎉 ¡Listo!', 'Clasificaste todos los residuos. Espera el final de la ronda.'];
+  else if (allDone) overlay = ['🎉 ¡Listo!', `Clasificaste todos los ${words().items}. Espera el final de la ronda.`];
 
   board.locked = t.phase !== 'running';
   board.el.classList.toggle('locked', board.locked);
@@ -385,7 +392,7 @@ function tick() {
     // El servidor cierra la ronda al vencer el tiempo (+1 s de margen).
     scheduleRefresh(1500);
   }
-  if (t.phase === 'running' && board.lastPhase === 'leadin') board.feedback.textContent = '¡Ya! Clasifica los residuos.';
+  if (t.phase === 'running' && board.lastPhase === 'leadin') board.feedback.textContent = `¡Ya! Clasifica los ${words().items}.`;
   board.lastPhase = t.phase;
 }
 
@@ -443,7 +450,7 @@ function renderFinal() {
       h('h2', {}, iWon ? '¡Felicitaciones, ganaste!' : 'Partida finalizada'),
       winners.length ? h('p', { class: 'winner' }, `${winners.length > 1 ? 'Ganadores' : 'Ganador'}: ${winners.map((w) => w.alias).join(', ')}`) : null,
       scoreSummary(),
-      h('p', { class: 'muted' }, 'Gracias por participar. ¡Segrega correctamente también en tu área de trabajo!')),
+      h('p', { class: 'muted' }, words().closing)),
     h('section', { class: 'card' }, h('h3', {}, 'Ranking final'), leaderboardList(state.leaderboard)),
     h('button', { class: 'btn btn-ghost', onclick: () => leave() }, 'Salir'));
 }

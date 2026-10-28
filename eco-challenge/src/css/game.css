@@ -163,3 +163,24 @@
   .side-join { display: none; }
 }
 :fullscreen .topbar { display: none; }
+
+/* ---------- Tema Riesgos Críticos: tarjetas de texto (controles) ---------- */
+.theme-riesgos .waste-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.theme-riesgos .waste-card { flex-direction: row; align-items: flex-start; text-align: left; padding: 0.5rem; }
+.theme-riesgos .waste-card .waste-img { width: 30px; flex: none; aspect-ratio: 1; }
+.theme-riesgos .waste-name { text-align: left; font-size: 0.78rem; font-weight: 700; flex: 1; }
+.theme-riesgos .waste-status { position: absolute; right: 6px; bottom: 4px; font-size: 0.75rem; }
+.theme-riesgos .waste-card.done { padding-bottom: 1.3rem; }
+.theme-riesgos .bin-label { font-size: 0.72em; }
+.theme-riesgos .bin-target { min-height: 84px; }
+[data-theme="riesgos"] .host-items { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+[data-theme="riesgos"] .host-item { display: flex; gap: 0.6rem; align-items: center; text-align: left; }
+[data-theme="riesgos"] .host-item img { width: 40px; flex: none; }
+[data-theme="riesgos"] .host-item figcaption { font-size: 0.95rem; }
+[data-theme="riesgos"] .bins-host .bin { font-size: 0.95rem; }
+@media (max-width: 420px) {
+  .theme-riesgos .waste-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* La explicación no debe empujar el tablero fuera de la pantalla. */
+.feedback { max-height: 5.2em; overflow-y: auto; overscroll-behavior: contain; }
+.theme-riesgos .feedback { font-size: 0.82rem; }

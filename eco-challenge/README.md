@@ -100,6 +100,24 @@ Retroalimentación configurable por partida: **inmediata** (el jugador ve ✅/�
 
 Cada banco de preguntas y cada partida pertenecen a **un solo ámbito**; la base de datos impide mezclarlos (triggers y validación en `create_game`). El ámbito es obligatorio al crear una partida.
 
+## 2.1 Tema "Riesgos Críticos Challenge"
+
+Misma metodología que residuos: cada **tarjeta es un control** y cada **"contenedor" es un riesgo crítico** (color, icono, código RC y nombre corto). El participante arrastra cada control al riesgo que corresponde; se puntúa, se desempata y se exporta igual que el tema de residuos.
+
+- Los temas y sus ámbitos se configuran en la tabla `scopes` (migración 005). El instructor elige primero el **tema** y luego el **ámbito/grupo**.
+- Como en el celular caben 7 contenedores, los riesgos se reparten en **Grupo A** y **Grupo B** (hasta 7 riesgos por grupo).
+- La explicación de cada control indica su tipo (crítico, preventivo o mitigante) y una pregunta de verificación en campo.
+- Se excluyen automáticamente los controles con texto igual o casi igual en dos riesgos del mismo grupo (tendrían dos respuestas correctas), p. ej. "Brigadas de respuesta a emergencias" o las variantes de "Aislamiento, bloqueo y señalización…".
+
+**Carga de datos (confidenciales).** Los riesgos y controles provienen de una matriz interna sujeta a confidencialidad, por eso **no están en este repositorio**: se cargan directamente en Supabase con
+
+```bash
+python3 -I scripts/riesgos-desde-excel.py Controles_Riesgos_Criticos.xlsx > riesgos.sql   # no lo suba a Git
+psql "$SUPABASE_DB_URL" -f riesgos.sql      # o pegue el contenido en el SQL Editor
+```
+
+El Excel debe tener las hojas `Controles por RC` (Código, Riesgo crítico, Tipo de control, N°, Control) y `Preguntas de verificación` (Código, Riesgo crítico, Tipo de control, Control, Pregunta). El script es re-ejecutable (identificadores deterministas) y deja los controles aprobados a nombre del administrador. Para añadir un riesgo nuevo, agregue su nombre corto, icono y color en `RC_META` del script.
+
 ## 3. Instalación de Supabase (paso a paso)
 
 1. Cree un proyecto en <https://supabase.com> (región cercana, p. ej. São Paulo).

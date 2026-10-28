@@ -153,3 +153,4 @@ legend { font-weight: 700; padding: 0 0.4em; }
   .card { padding: 0.9rem; }
 }
 .actions > select { width: auto; flex: 0 1 280px; }
+.home-section { margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid rgba(255, 255, 255, 0.3); }
