@@ -1,11 +1,12 @@
 // Módulo administrativo: banco de residuos, validación, bancos de preguntas,
 // importación/exportación y personal autorizado.
 import { supabase, configError, rpc } from './supabase.js';
-import { h, $, clear, toast, renderConfigError, wasteImage, binBadge, scopeLabel, downloadFile, formatDate } from './ui.js';
+import { h, $, clear, toast, renderConfigError, wasteImage, binBadge, scopeLabel, downloadFile, formatDate, getScopes } from './ui.js';
+import { loadScopes } from './scopes.js';
 import { friendlyError } from './errors.js';
 import { currentStaff, renderLogin, logout } from './auth.js';
 import { toCsv, parseCsv } from './csv.js';
-import { validateWasteItem, SCOPES } from './validation.js';
+import { validateWasteItem } from './validation.js';
 
 const app = $('#app');
 const nav = $('#nav');
@@ -24,7 +25,15 @@ const selected = new Set();
 const isAdmin = () => staff?.role === 'admin';
 const binOf = (scope, code) => bins.find((b) => b.scope === scope && b.code === code);
 
+function validationOptions() {
+  const scopes = Object.fromEntries(getScopes().map((sc) => [sc.code, sc.name]));
+  const binCodes = {};
+  for (const b of bins) (binCodes[b.scope] ||= []).push(b.code);
+  return { scopes, binCodes };
+}
+
 async function loadBase() {
+  await loadScopes();
   const [b, i] = await Promise.all([
     supabase.from('bins').select('*').order('scope').order('sort_order'),
     supabase.from('waste_items').select(ITEM_COLS).order('scope').order('name'),
@@ -103,7 +112,7 @@ function renderItems() {
         h('button', { class: 'btn btn-primary', onclick: () => openEditor(null) }, '➕ Nuevo residuo')),
       pending ? h('p', { class: 'notice' }, `🕓 ${pending} residuo(s) pendientes de validación${isAdmin() ? '' : ' por un administrador'}. Sólo los aprobados y activos se usan en las partidas.`) : null,
       h('div', { class: 'filters' },
-        sel('scope', [['', 'Todos los ámbitos'], ['municipal', 'Municipal'], ['no_municipal', 'No municipal']]),
+        sel('scope', [['', 'Todos los ámbitos'], ...getScopes().map((sc) => [sc.code, sc.name])]),
         sel('status', [['', 'Todos los estados'], ['pendiente', 'Pendientes'], ['aprobado', 'Aprobados'], ['rechazado', 'Rechazados']]),
         sel('active', [['', 'Activos e inactivos'], ['true', 'Sólo activos'], ['false', 'Sólo inactivos']]),
         search),
@@ -174,7 +183,7 @@ function openEditor(it) {
   const name = h('input', { value: data.name, maxlength: 80, required: true });
   const scope = h('select', { required: true },
     h('option', { value: '' }, 'Seleccione…'),
-    Object.entries(SCOPES).map(([v, l]) => h('option', { value: v, selected: data.scope === v }, l)));
+    getScopes().map((sc) => h('option', { value: sc.code, selected: data.scope === sc.code }, sc.name)));
   const bin = h('select', { required: true });
   const source = h('select', {},
     h('option', { value: 'propia', selected: data.image_source === 'propia' }, 'Imagen propia del sitio (ruta /img/...)'),
@@ -246,7 +255,7 @@ function openEditor(it) {
       const { item, errors } = validateWasteItem({
         name: name.value, scope: scope.value, bin_code: bin.value, image_url: imageUrl,
         image_source: source.value, image_credit: credit.value, explanation: explanation.value, active: active.checked,
-      });
+      }, validationOptions());
       if (errors.length) { msg.textContent = errors.join(' '); return; }
       if (isAdmin()) item.status = approve ? 'aprobado' : 'pendiente';
       const q = isNew ? supabase.from('waste_items').insert(item) : supabase.from('waste_items').update(item).eq('id', it.id);
@@ -310,7 +319,7 @@ async function renderBanks(openId = null) {
 
   const name = h('input', { required: true, maxlength: 80, placeholder: 'Ej.: Obra civil – Campamento' });
   const scope = h('select', { required: true }, h('option', { value: '' }, 'Ámbito…'),
-    Object.entries(SCOPES).map(([v, l]) => h('option', { value: v }, l)));
+    getScopes().map((sc) => h('option', { value: sc.code }, sc.name)));
   const desc = h('input', { maxlength: 200, placeholder: 'Descripción (opcional)' });
   const createForm = h('form', { class: 'inline-form', onsubmit: async (e) => {
     e.preventDefault();
@@ -399,7 +408,7 @@ function renderIO() {
       } else {
         rows = parseCsv(text);
       }
-      const parsed = rows.map((r, i) => ({ line: i + 1, ...validateWasteItem(r) }));
+      const parsed = rows.map((r, i) => ({ line: i + 1, ...validateWasteItem(r, validationOptions()) }));
       const ok = parsed.filter((p) => !p.errors.length);
       const bad = parsed.filter((p) => p.errors.length);
       out.append(
@@ -461,7 +470,7 @@ function renderIO() {
     h('section', { class: 'card' },
       h('h2', {}, 'Importar'),
       h('p', { class: 'muted' }, 'Archivo JSON exportado por esta aplicación o CSV con las columnas de la plantilla. ',
-        'Los ámbitos válidos son "municipal" y "no_municipal"; los contenedores: verde, marron, negro, rojo (municipal) o azul, blanco, amarillo, plomo, marron, rojo, negro (no municipal). ',
+        `Ámbitos válidos: ${getScopes().map((sc) => `"${sc.code}" (${[...new Set(bins.filter((b) => b.scope === sc.code).map((b) => b.code))].join(', ')})`).join('; ')}. `,
         'Si la fila trae un "id" existente se actualiza; si no, se crea. Todo lo importado queda pendiente de validación.'),
       file, out));
 }

@@ -96,6 +96,29 @@ export function binBadge(bin, { tag = 'div', cls = 'bin', ...props } = {}) {
   return el;
 }
 
+// Registro de ámbitos (tabla "scopes"): nombre y tema de cada uno.
+const scopeRegistry = new Map([
+  ['municipal', { code: 'municipal', theme: 'residuos', name: 'Municipal' }],
+  ['no_municipal', { code: 'no_municipal', theme: 'residuos', name: 'No municipal' }],
+]);
+
+export function setScopes(list) {
+  for (const sc of list || []) scopeRegistry.set(sc.code, sc);
+}
+
+export function getScopes() {
+  return [...scopeRegistry.values()].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+}
+
 export function scopeLabel(scope) {
-  return scope === 'no_municipal' ? 'No municipal' : 'Municipal';
+  return scopeRegistry.get(scope)?.name ?? scope;
+}
+
+export const THEMES = {
+  residuos: { name: 'Residuos sólidos', icon: '♻️', item: 'residuo', items: 'residuos', bin: 'contenedor', bins: 'contenedores' },
+  riesgos: { name: 'Riesgos críticos', icon: '⚠️', item: 'control', items: 'controles', bin: 'riesgo crítico', bins: 'riesgos críticos' },
+};
+
+export function themeOf(scope) {
+  return THEMES[scopeRegistry.get(scope)?.theme] ? scopeRegistry.get(scope).theme : 'residuos';
 }

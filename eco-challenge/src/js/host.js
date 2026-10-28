@@ -1,7 +1,8 @@
 // Panel del instructor y pantalla de proyección.
 import QRCode from 'qrcode';
 import { supabase, configError, rpc, timedRpc, publicSiteUrl } from './supabase.js';
-import { h, $, clear, toast, renderConfigError, wasteImage, binBadge, scopeLabel, downloadFile, formatDate } from './ui.js';
+import { h, $, clear, toast, renderConfigError, wasteImage, binBadge, scopeLabel, downloadFile, formatDate, getScopes, THEMES, themeOf } from './ui.js';
+import { loadScopes } from './scopes.js';
 import { friendlyError, isNetworkError } from './errors.js';
 import { ServerClock, roundTimer, formatSeconds } from './clock.js';
 import { joinGameChannel } from './realtime.js';
@@ -48,7 +49,7 @@ function renderNav() {
   clear(nav).append(
     h('button', { class: 'btn btn-ghost', onclick: () => openNewGame() }, '➕ Nueva partida'),
     h('button', { class: 'btn btn-ghost', onclick: () => openHistory() }, '🗂️ Historial'),
-    h('a', { class: 'btn btn-ghost', href: 'admin.html' }, '🖼️ Banco de residuos'),
+    h('a', { class: 'btn btn-ghost', href: 'admin.html' }, '🖼️ Banco de preguntas'),
     h('span', { class: 'muted small nav-user' }, `${staff.user.email} · ${staff.role}`),
     h('button', { class: 'btn btn-ghost', onclick: logout }, 'Salir'));
 }
@@ -78,18 +79,39 @@ async function openNewGame() {
   const err = banksRes.error || itemsRes.error || linksRes.error;
   if (err) { clear(app).append(h('p', { class: 'form-error' }, friendlyError(err))); return; }
 
+  await loadScopes();
+  const scopes = getScopes();
   const playable = new Set(itemsRes.data.filter((i) => i.active && i.status === 'aprobado').map((i) => i.id));
-  const countByScope = { municipal: 0, no_municipal: 0 };
-  for (const i of itemsRes.data) if (playable.has(i.id)) countByScope[i.scope]++;
+  const countByScope = Object.fromEntries(scopes.map((sc) => [sc.code, 0]));
+  for (const i of itemsRes.data) if (playable.has(i.id)) countByScope[i.scope] = (countByScope[i.scope] || 0) + 1;
   const countByBank = {};
   for (const l of linksRes.data) if (playable.has(l.item_id)) countByBank[l.bank_id] = (countByBank[l.bank_id] || 0) + 1;
 
-  const scopeInputs = ['municipal', 'no_municipal'].map((s) => h('label', { class: 'radio-card' },
-    h('input', { type: 'radio', name: 'scope', value: s, required: true }),
-    h('strong', {}, scopeLabel(s)),
-    h('span', { class: 'small muted' }, s === 'municipal'
-      ? '4 contenedores: verde, marrón, negro y rojo'
-      : '7 contenedores: azul, blanco, amarillo, plomo, marrón, rojo y negro')));
+  // Tema (residuos sólidos / riesgos críticos) y luego su ámbito o grupo.
+  const urlTheme = new URLSearchParams(location.search).get('tema');
+  const themes = Object.keys(THEMES).filter((t) => scopes.some((sc) => sc.theme === t));
+  const themeInputs = themes.map((t) => h('label', { class: 'radio-card' },
+    h('input', { type: 'radio', name: 'theme', value: t, checked: t === (themes.includes(urlTheme) ? urlTheme : themes[0]) }),
+    h('strong', {}, `${THEMES[t].icon} ${THEMES[t].name}`),
+    h('span', { class: 'small muted' }, t === 'residuos'
+      ? 'Clasificar residuos en el contenedor correcto (NTP 900.058:2019).'
+      : 'Relacionar cada control con su riesgo crítico.')));
+  const scopeRow = h('div', { class: 'radio-row' });
+  const scopeLegend = h('legend', {});
+  const currentTheme = () => new FormData(form).get('theme') || themes[0];
+
+  function renderScopes() {
+    const t = currentTheme();
+    scopeLegend.textContent = t === 'residuos' ? 'Ámbito de gestión de residuos (obligatorio)' : 'Grupo de riesgos críticos (obligatorio)';
+    clear(scopeRow).append(...scopes.filter((sc) => sc.theme === t).map((sc) => h('label', { class: 'radio-card' },
+      h('input', { type: 'radio', name: 'scope', value: sc.code, required: true }),
+      h('strong', {}, sc.name),
+      h('span', { class: 'small muted' }, sc.description || ''),
+      h('span', { class: 'small muted' }, `${countByScope[sc.code] || 0} ${THEMES[t].items} aprobados`))));
+    clear(bank).append(h('option', { value: '' }, 'Primero elija el ámbito'));
+    bank.disabled = true;
+    bankInfo.textContent = '';
+  }
 
   const bank = h('select', { name: 'bank', disabled: true }, h('option', { value: '' }, 'Primero elija el ámbito'));
   const bankInfo = h('p', { class: 'small muted' });
@@ -111,7 +133,7 @@ async function openNewGame() {
     const scope = new FormData(form).get('scope');
     clear(bank);
     bank.disabled = false;
-    bank.append(h('option', { value: '' }, `Todos los residuos aprobados del ámbito (${countByScope[scope]})`));
+    bank.append(h('option', { value: '' }, `Todos los ${THEMES[themeOf(scope)].items} aprobados del ámbito (${countByScope[scope] || 0})`));
     for (const b of banksRes.data.filter((x) => x.scope === scope)) {
       bank.append(h('option', { value: b.id }, `${b.name} (${countByBank[b.id] || 0} aprobados)`));
     }
@@ -119,10 +141,11 @@ async function openNewGame() {
   }
   function onBank() {
     const scope = new FormData(form).get('scope');
-    const n = bank.value ? (countByBank[bank.value] || 0) : countByScope[scope];
+    const n = bank.value ? (countByBank[bank.value] || 0) : (countByScope[scope] || 0);
+    const words = THEMES[themeOf(scope)];
     bankInfo.textContent = n
-      ? `${n} residuo(s) disponibles para jugar.`
-      : '⚠️ No hay residuos aprobados y activos. Un administrador debe validarlos en el banco de residuos.';
+      ? `${n} ${words.items} disponibles para jugar.`
+      : `⚠️ No hay ${words.items} aprobados y activos. Un administrador debe validarlos en el banco.`;
   }
 
   const form = h('form', { class: 'card form-grid', onsubmit: async (ev) => {
@@ -147,13 +170,14 @@ async function openNewGame() {
     }
   } },
   h('h2', { class: 'span-2' }, 'Nueva partida'),
-  h('fieldset', { class: 'span-2', onchange: onScope },
-    h('legend', {}, 'Ámbito de gestión de residuos (obligatorio)'),
-    h('div', { class: 'radio-row' }, scopeInputs)),
+  h('fieldset', { class: 'span-2', onchange: renderScopes },
+    h('legend', {}, 'Tema de la capacitación'),
+    h('div', { class: 'radio-row' }, themeInputs)),
+  h('fieldset', { class: 'span-2', onchange: onScope }, scopeLegend, scopeRow),
   h('label', { class: 'span-2' }, 'Banco de preguntas', bank, bankInfo),
   h('label', { class: 'span-2' }, 'Título (opcional)', fields.title),
   h('label', {}, 'Duración de cada ronda (segundos)', fields.duration),
-  h('label', {}, 'Residuos por ronda', fields.items),
+  h('label', {}, 'Tarjetas por ronda', fields.items),
   h('label', {}, 'Número de rondas', fields.rounds),
   h('label', {}, 'Puntos por respuesta correcta', fields.base),
   h('label', {}, 'Bono máximo por rapidez (0–50)', fields.bonus),
@@ -162,6 +186,7 @@ async function openNewGame() {
   h('div', { class: 'span-2 actions' }, h('button', { class: 'btn btn-primary btn-lg', type: 'submit' }, 'Crear partida')));
   bank.addEventListener('change', onBank);
   clear(app).append(form);
+  renderScopes();
 }
 
 // ---------------------------------------------------------------------
@@ -328,10 +353,11 @@ function renderGame() {
 
   if (view?.key === key) { updateGame(); return; }
   view = { key };
+  app.dataset.theme = hs.scope_info?.theme || 'residuos';
 
   const head = h('div', { class: 'game-head' },
     h('div', {},
-      h('h2', {}, g.title || 'Partida SSOMA Eco Challenge'),
+      h('h2', {}, g.title || (hs.scope_info?.theme === 'riesgos' ? 'Partida Riesgos Críticos' : 'Partida SSOMA Eco Challenge')),
       h('div', { class: 'chips' },
         h('span', { class: 'chip' }, `📍 ${scopeLabel(g.scope)}`),
         h('span', { class: 'chip' }, `🗂️ ${g.bank_name || 'Todos los aprobados'}`),
@@ -514,8 +540,9 @@ async function start() {
   boot();
 }
 
-function boot() {
+async function boot() {
   renderNav();
+  await loadScopes();
   setInterval(() => { if (view?.timer) updateGame(); }, 250);
   const saved = savedGame();
   if (saved) openGame(saved); else openNewGame();

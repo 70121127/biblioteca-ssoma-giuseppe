@@ -30,11 +30,10 @@ const IMAGE_URL = /^(https:\/\/|\/)[^\s"'<>]+$/;
  * Valida y normaliza un registro del banco (formulario o importación).
  * @returns {{item?: object, errors: string[]}}
  */
-export function validateWasteItem(raw) {
+export function validateWasteItem(raw, { scopes = SCOPES, binCodes = BIN_CODES } = {}) {
   const errors = [];
   const scopeRaw = String(raw.scope ?? raw.ambito ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
-  const scope = scopeRaw === 'no_municipal' || scopeRaw === 'nomunicipal' ? 'no_municipal'
-    : scopeRaw === 'municipal' ? 'municipal' : null;
+  const scope = scopeRaw === 'nomunicipal' ? 'no_municipal' : (scopes[scopeRaw] ? scopeRaw : null);
   const bin = String(raw.bin_code ?? raw.contenedor ?? '').trim().toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '');
   const name = String(raw.name ?? raw.nombre ?? '').trim();
@@ -46,9 +45,9 @@ export function validateWasteItem(raw) {
   const activeRaw = raw.active ?? raw.activo ?? true;
   const active = !['false', '0', 'no', 'n'].includes(String(activeRaw).trim().toLowerCase());
 
-  if (name.length < 2 || name.length > 80) errors.push('Nombre: entre 2 y 80 caracteres.');
-  if (!scope) errors.push('Ámbito: "municipal" o "no_municipal".');
-  else if (!BIN_CODES[scope].includes(bin)) errors.push(`Contenedor "${bin}" no válido para el ámbito ${SCOPES[scope]}.`);
+  if (name.length < 2 || name.length > 160) errors.push('Nombre: entre 2 y 160 caracteres.');
+  if (!scope) errors.push(`Ámbito no válido. Use uno de: ${Object.keys(scopes).join(', ')}.`);
+  else if (!(binCodes[scope] || []).includes(bin)) errors.push(`Contenedor "${bin}" no válido para el ámbito ${scopes[scope]}.`);
   if (!IMAGE_URL.test(image_url)) errors.push('Imagen: ruta propia (/img/...) o URL https://.');
   if (!image_source) errors.push('Origen de imagen: propia, storage o externa_autorizada.');
   if (image_source === 'externa_autorizada' && !image_credit) errors.push('Imagen externa: indique autor y licencia.');

@@ -1,7 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import pg from 'pg';
-import { createTestDb, dropTestDb, rpc, createUser, approveAll } from './helpers.mjs';
+import { createTestDb, dropTestDb, rpc, user, createUser, approveAll } from './helpers.mjs';
 
 const DB = 'eco_test_gameplay';
 const BANK_MUN = 'c0000000-0000-4000-8000-000000000001';
@@ -253,4 +253,48 @@ test('las rondas priorizan residuos no usados y respetan el ámbito', async () =
   assert.ok([...a, ...b].every((x) => x.scope === 'no_municipal'));
   const overlap = b.filter((x) => a.some((y) => y.item_id === x.item_id)).length;
   assert.equal(overlap, 0, '20 residuos disponibles: dos rondas de 10 sin repetir');
+});
+
+test('tema Riesgos Críticos: ámbito configurable, controles con texto largo y contenedores = riesgos', async () => {
+  // Datos de ejemplo genéricos (no corresponden a ninguna empresa).
+  await pool.query(`insert into public.scopes (code, theme, name, prompt, sort_order)
+                    values ('rc_demo', 'riesgos', 'Riesgos críticos · Demo', 'Arrastra cada control a su riesgo crítico.', 10)`);
+  await pool.query(`insert into public.bins (scope, code, color_name, label, color_hex, text_hex, icon, description, sort_order) values
+    ('rc_demo', 'altura', 'RC-A', 'Trabajo en altura', '#1E63C6', '#FFFFFF', '🧗', 'Caídas a distinto nivel', 1),
+    ('rc_demo', 'izaje', 'RC-B', 'Maniobras de izaje', '#7B4A2A', '#FFFFFF', '🏗️', 'Cargas suspendidas', 2)`);
+  const admin = { role: 'authenticated', uid: adminId };
+  const largo = 'Sistema de protección contra caídas certificado, inspeccionado antes de cada uso y anclado a un punto independiente verificado';
+  assert.ok(largo.length > 80 && largo.length <= 160);
+  assert.equal(await rpc(pool, admin, 'my_role'), 'admin');
+  const ins = await user(pool, adminId,
+    `insert into public.waste_items (name, scope, bin_code, image_url, explanation, status) values
+       ($1, 'rc_demo', 'altura', '/img/riesgos/control.svg', 'Control del riesgo de trabajo en altura.', 'aprobado'),
+       ('Plan de izaje aprobado', 'rc_demo', 'izaje', '/img/riesgos/control.svg', 'Control del riesgo de izaje.', 'aprobado')
+     returning id`, [largo]);
+  assert.equal(ins.rowCount, 2);
+  // Un contenedor de residuos no es válido en este ámbito.
+  await assert.rejects(user(pool, adminId,
+    `insert into public.waste_items (name, scope, bin_code, image_url, explanation) values
+       ('Algo', 'rc_demo', 'verde', '/img/x.svg', 'explicación')`), /foreign key/);
+
+  const g = await rpc(pool, I(), 'create_game', ['rc_demo', null, 'Riesgos', 60, 100, 50, 5, 1, 'inmediata']);
+  const p = await rpc(pool, A, 'join_game', [g.code, 'Operador']);
+  const round = await rpc(pool, I(), 'start_round', [g.id]);
+  assert.equal(round.items, 2);
+  await shiftRound(g.id, 2);
+  const st = await rpc(pool, A, 'player_state', [p.token]);
+  assert.equal(st.game.theme, 'riesgos');
+  assert.equal(st.game.scope_name, 'Riesgos críticos · Demo');
+  assert.deepEqual(st.bins.map((b) => b.code), ['altura', 'izaje']);
+  assert.ok(st.round.items.every((it) => it.correct_bin === null));
+  const bins = await correctBins(round.round_id);
+  const id = st.round.items.find((it) => it.name === largo).id;
+  assert.equal(bins[id], 'altura');
+  const r = await rpc(pool, A, 'submit_answer', [p.token, round.round_id, id, 'izaje']);
+  assert.equal(r.is_correct, false);
+  assert.equal(r.correct_bin, 'altura');
+  await assert.rejects(rpc(pool, A, 'submit_answer', [p.token, round.round_id, id, 'verde']), /CONTENEDOR_INVALIDO/);
+  const hs = await rpc(pool, I(), 'host_state', [g.id]);
+  assert.equal(hs.scope_info.theme, 'riesgos');
+  await assert.rejects(rpc(pool, I(), 'create_game', ['no_existe']), /AMBITO_REQUERIDO/);
 });

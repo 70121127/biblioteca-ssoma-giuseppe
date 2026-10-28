@@ -5,3 +5,4 @@ dist/
 test-results/
 *.log
 dist-e2e/
+*.local.mjs
