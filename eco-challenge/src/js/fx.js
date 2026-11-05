@@ -46,7 +46,14 @@ export class Sound {
       this.ctx = new Ctx();
       this.master = this.ctx.createGain();
       this.master.gain.value = this.muted ? 0 : 0.9;
-      this.master.connect(this.ctx.destination);
+      // Limitador: permite subir el volumen sin que el parlante del celular distorsione.
+      const limiter = this.ctx.createDynamicsCompressor();
+      limiter.threshold.value = -6;
+      limiter.knee.value = 6;
+      limiter.ratio.value = 12;
+      limiter.attack.value = 0.003;
+      limiter.release.value = 0.15;
+      this.master.connect(limiter).connect(this.ctx.destination);
     }
     if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
   }
@@ -144,7 +151,7 @@ export class Sound {
   }
 
   /** ¡La piñata revienta!: golpe grave, crujido de cartón y lluvia de campanitas. */
-  burst() {
+  burst(loud = 1) {
     if (!this.ready) return;
     const t = this.ctx.currentTime;
     // Golpe grave (bombo)
@@ -153,19 +160,19 @@ export class Sound {
     o.type = 'sine';
     o.frequency.setValueAtTime(160, t);
     o.frequency.exponentialRampToValueAtTime(40, t + 0.35);
-    g.gain.setValueAtTime(0.9, t);
+    g.gain.setValueAtTime(0.9 * loud, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
     o.connect(g).connect(this.master);
     o.start(t);
     o.stop(t + 0.5);
     // Crujido / papel rasgado
-    this._noise(t, 0.5, { gain: 0.8, freq: 900, q: 0.6 });
-    this._noise(t + 0.02, 0.25, { gain: 0.5, freq: 3000, q: 1.2, type: 'highpass' });
+    this._noise(t, 0.5, { gain: 0.8 * loud, freq: 900, q: 0.6 });
+    this._noise(t + 0.02, 0.25, { gain: 0.5 * loud, freq: 3000, q: 1.2, type: 'highpass' });
     // Lluvia de dulces (campanitas)
     const notes = [24, 28, 31, 36, 31, 33, 36, 40];
-    notes.forEach((n, i) => this._note(hz(n), t + 0.12 + i * 0.06 + Math.random() * 0.02, 0.25, 'triangle', 0.07));
+    notes.forEach((n, i) => this._note(hz(n), t + 0.12 + i * 0.06 + Math.random() * 0.02, 0.25, 'triangle', 0.07 * loud));
     // Fanfarria corta
-    [12, 16, 19, 24].forEach((n, i) => this._note(hz(n), t + 0.65 + i * 0.11, i === 3 ? 0.5 : 0.12, 'square', 0.05));
+    [12, 16, 19, 24].forEach((n, i) => this._note(hz(n), t + 0.65 + i * 0.11, i === 3 ? 0.5 : 0.12, 'square', 0.05 * loud));
   }
 
   correct() {

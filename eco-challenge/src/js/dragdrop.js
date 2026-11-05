@@ -61,20 +61,31 @@ export function attachClassifier({ board, onClassify, isLocked = () => false }) 
       ghost.style.height = `${rect.height}px`;
       drag.offX = drag.startX - rect.left;
       drag.offY = drag.startY - rect.top;
+      ghost.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0)`;
       document.body.append(ghost);
       drag.ghost = ghost;
       drag.card.classList.add('dragging');
       select(null);
     }
     ev.preventDefault();
-    drag.ghost.style.transform = `translate(${ev.clientX - drag.offX}px, ${ev.clientY - drag.offY}px) rotate(-3deg)`;
-    setOver(binAt(ev.clientX, ev.clientY));
+    // Un solo repintado por fotograma, con la última posición del dedo.
+    drag.x = ev.clientX;
+    drag.y = ev.clientY;
+    if (!drag.frame) {
+      drag.frame = requestAnimationFrame(() => {
+        if (!drag) return;
+        drag.frame = 0;
+        drag.ghost.style.transform = `translate3d(${drag.x - drag.offX}px, ${drag.y - drag.offY}px, 0) rotate(-2deg)`;
+        setOver(binAt(drag.x, drag.y));
+      });
+    }
   });
 
   function endDrag(ev, cancelled) {
     if (!drag || ev.pointerId !== drag.pointerId) return;
     const d = drag;
     drag = null;
+    if (d.frame) cancelAnimationFrame(d.frame);
     d.ghost?.remove();
     d.card.classList.remove('dragging');
     d.overBin?.classList.remove('drop-target');

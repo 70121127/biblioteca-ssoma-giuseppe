@@ -253,15 +253,15 @@ function renderBoard() {
   const bins = h('div', { class: `bins-dock bins-${state.bins.length}` },
     state.bins.map((b) => binBadge(b, { tag: 'button', type: 'button', cls: 'bin bin-target', 'aria-label': `Contenedor ${b.color_name}: ${b.label}` })));
 
+  const pinata = new Pinata(h('div'), { size: 46 });
   const boardEl = h('section', { class: `board theme-${state.game.theme || 'residuos'}` },
     h('div', { class: 'board-head' },
-      h('div', { class: 'timer' }, h('span', { class: 'timer-icon', 'aria-hidden': 'true' }, '⏱️'), timerText),
+      h('div', { class: 'timer' }, h('span', { class: 'timer-icon', 'aria-hidden': 'true' }, '⏱️'), timerText, pinata.el),
       h('span', { class: 'chip' }, `Ronda ${r.round_no}/${state.game.total_rounds}`),
       progress, score, soundToggle(sound)),
     timerBar, feedback, grid, bins, overlay);
 
   clear(app).append(boardEl);
-  const pinata = new Pinata(boardEl, { size: 72 });
   board = { r, timerText, timerBar, progress, score, feedback, overlay, cards, el: boardEl, locked: false, lastPhase: null, pinata, lastTickSec: null };
   attachClassifier({ board: boardEl, isLocked: () => board?.locked, onClassify: (itemId, bin, card) => sendAnswer(itemId, bin, card) });
   for (const [id, res] of results) markCard(id, res);
@@ -314,8 +314,6 @@ async function deliver(itemId, bin, roundId) {
     results.set(itemId, res);
     markCard(itemId, res);
     showFeedback(res);
-    if (res.status === 'registrado' && res.is_correct === true) sound.correct();
-    else if (res.status === 'registrado' && res.is_correct === false) sound.wrong();
     updateBoard();
     if (res.status === 'duplicado') toast('Esa respuesta ya estaba registrada.', 'info', 2000);
   } catch (err) {
@@ -403,20 +401,18 @@ function tick() {
   }
   if (t.phase === 'running' && board.lastPhase === 'leadin') {
     board.feedback.textContent = `¡Ya! Clasifica los ${words().items}.`;
-    sound.start();
   }
-  // Últimos 10 s: aparece la piñata, tiembla cada vez más y suena el tic-tac.
+  // Últimos 10 s: aparece la piñata junto al cronómetro y tiembla cada vez más
+  // (en el celular sin tic-tac: la música y el conteo suenan en el proyector).
   if (t.phase === 'running' && t.remainingMs <= 10000) {
     board.pinata.shake((10000 - t.remainingMs) / 10000);
-    const sec = Math.ceil(t.remainingMs / 1000);
-    if (sec !== board.lastTickSec) { board.lastTickSec = sec; sound.tick(sec); }
   } else if (t.phase !== 'ended') {
     board.pinata.hide();
   }
-  // ¡Tiempo! La piñata revienta (sólo si la ronda terminó por tiempo).
+  // ¡Tiempo! La piñata revienta con la "bombita" (único sonido en el celular).
   if (t.phase === 'ended' && state.round.status === 'running' && !board.pinata.burstDone) {
     board.pinata.burst();
-    sound.burst();
+    sound.burst(1.6);
   }
   board.lastPhase = t.phase;
 }
