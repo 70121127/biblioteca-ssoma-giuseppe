@@ -6,7 +6,7 @@ import { ServerClock, roundTimer, formatSeconds } from './clock.js';
 import { joinGameChannel } from './realtime.js';
 import { attachClassifier } from './dragdrop.js';
 import { normalizeAlias, isValidAlias, isValidCode, shuffle } from './validation.js';
-import { Sound, Pinata, soundToggle, pinataFinale } from './fx.js';
+import { Sound, Pinata, soundToggle, pinataFinale, autoUnlock } from './fx.js';
 
 const STORAGE_KEY = 'eco.player';
 const app = $('#app');
@@ -15,7 +15,7 @@ const clock = new ServerClock();
 // Sonido completo también en el celular: música de espera y de ronda, tic-tac,
 // efectos y gran final (cada participante puede silenciar con 🔊/🔇).
 const sound = new Sound();
-for (const ev of ['pointerdown', 'keydown']) document.addEventListener(ev, () => sound.unlock(), { capture: true });
+autoUnlock(sound);
 
 let session = loadSession();
 let state = null;
@@ -24,6 +24,7 @@ let refreshing = false;
 let refreshTimer = null;
 let failures = 0;
 let screenKey = '';
+let finaleRound = null;     // ronda cuya piñata gigante ya se mostró
 let board = null;            // referencias del tablero de la ronda actual
 const results = new Map();   // item_id -> resultado devuelto por el servidor (ronda actual)
 const outbox = new Map();    // item_id -> contenedor pendiente de envío (sin conexión)
@@ -169,6 +170,13 @@ function render() {
   const key = inRound ? `round:${r.id}` : `${g.status}:${r?.id ?? ''}:${r?.status ?? ''}`;
 
   if (key !== screenKey) {
+    // Toda ronda que termina (por tiempo, por el instructor o al finalizar la
+    // partida) cierra con la piñata gigante, una sola vez por ronda.
+    const wasRound = screenKey.startsWith('round:') ? screenKey.slice(6) : null;
+    if (wasRound && finaleRound !== wasRound) {
+      finaleRound = wasRound;
+      pinataFinale(sound, { text: g.status === 'finished' ? '¡FIN DEL JUEGO!' : '¡TIEMPO!' });
+    }
     screenKey = key;
     board = null;
     if (inRound) renderBoard();
@@ -426,7 +434,8 @@ function tick() {
     board.pinata.hide();
   }
   // ¡Tiempo! Gran final: piñata gigante que revienta en toda la pantalla.
-  if (t.phase === 'ended' && state.round.status === 'running' && !board.pinata.burstDone) {
+  if (t.phase === 'ended' && !board.pinata.burstDone && finaleRound !== board.r.id) {
+    finaleRound = board.r.id;
     board.pinata.burst();
     pinataFinale(sound);
   }

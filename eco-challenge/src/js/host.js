@@ -8,7 +8,7 @@ import { ServerClock, roundTimer, formatSeconds } from './clock.js';
 import { joinGameChannel } from './realtime.js';
 import { currentStaff, renderLogin, logout } from './auth.js';
 import { toCsv } from './csv.js';
-import { Sound, Pinata, soundToggle, pinataFinale } from './fx.js';
+import { Sound, Pinata, soundToggle, pinataFinale, autoUnlock } from './fx.js';
 
 const GAME_KEY = 'eco.host.game';
 const app = $('#app');
@@ -16,7 +16,7 @@ const nav = $('#nav');
 const clock = new ServerClock();
 const sound = new Sound();
 // El navegador sólo permite sonido después de un clic o toque.
-for (const ev of ['pointerdown', 'keydown']) document.addEventListener(ev, () => sound.unlock(), { capture: true });
+autoUnlock(sound);
 
 let staff = null;
 let gameId = null;
@@ -26,6 +26,7 @@ let pollTimer = null;
 let busy = false;
 let view = null;          // referencias de la vista de partida
 let showLiveRanking = false;
+let finaleRound = null;   // ronda cuya piñata gigante ya se mostró
 let csvSep = ';';
 
 const STATUS_LABEL = {
@@ -217,6 +218,14 @@ async function poll() {
     if (!channel && hs.game.status !== 'closed') channel = joinGameChannel(hs.game.code, {});
     // Si la ronda se cerró por tiempo, se avisa a los participantes.
     if (prev && prev.game.status !== hs.game.status) signal();
+    // Toda ronda que termina (por tiempo, con "Finalizar ronda" o "Finalizar
+    // partida") cierra con la piñata gigante, una sola vez por ronda.
+    const prevRound = prev?.round;
+    if (prevRound && prevRound.status !== 'ended' && hs.round?.id === prevRound.id
+        && hs.round.status === 'ended' && finaleRound !== prevRound.id) {
+      finaleRound = prevRound.id;
+      pinataFinale(sound, { text: hs.game.status === 'finished' ? '¡FIN DEL JUEGO!' : '¡TIEMPO!' });
+    }
     renderGame();
   } catch (err) {
     if (!isNetworkError(err)) {
@@ -473,7 +482,8 @@ function updateGame() {
     if (t.phase === 'running' && view.lastPhase === 'leadin') sound.start();
     view.lastPhase = t.phase;
     // Se acabó el tiempo: ¡la piñata revienta!
-    if (t.phase === 'ended' && !view.pinata.burstDone && r.status === 'running') {
+    if (t.phase === 'ended' && !view.pinata.burstDone && finaleRound !== r.id) {
+      finaleRound = r.id;
       view.pinata.burst();
       pinataFinale(sound);
     }
