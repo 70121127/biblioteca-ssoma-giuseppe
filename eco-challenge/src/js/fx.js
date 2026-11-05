@@ -2,7 +2,6 @@
 // que revienta al terminar el tiempo. Todo el audio se sintetiza con la
 // Web Audio API (sin archivos ni música con derechos de autor).
 
-const MUTE_KEY = 'eco.sonido.silenciado';
 const reduceMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // Melodías (semitonos respecto a La 440 Hz; null = silencio).
@@ -27,6 +26,38 @@ const SONGS = {
 
 const hz = (semi) => 440 * 2 ** (semi / 12);
 
+// WAV de silencio (44 bytes de cabecera + 2 muestras) para desbloquear el audio en iOS.
+const SILENT_WAV = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQQAAAAAAAAA';
+
+// Eventos que los navegadores aceptan como "gesto del usuario" para permitir sonido.
+// Ojo: en pantallas táctiles `pointerdown` NO cuenta; sí `touchend`, `pointerup` y `click`.
+const GESTURE_EVENTS = ['click', 'touchend', 'pointerup', 'keydown', 'mousedown'];
+
+/**
+ * Activa el sonido en el primer gesto válido de la página (y en los siguientes
+ * si el navegador lo vuelve a suspender), lo reanuda al volver a la pestaña y
+ * muestra un aviso "Toca para activar el sonido" mientras siga bloqueado.
+ */
+export function autoUnlock(sound) {
+  const unlock = () => sound.unlock();
+  for (const ev of GESTURE_EVENTS) document.addEventListener(ev, unlock, { capture: true, passive: true });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && sound.ctx && sound.ctx.state !== 'running') sound.ctx.resume().catch(() => {});
+  });
+  const banner = document.createElement('button');
+  banner.type = 'button';
+  banner.className = 'sound-banner';
+  banner.textContent = '🔊 Toca aquí para activar el sonido';
+  banner.hidden = true;
+  banner.addEventListener('click', () => { sound.unlock(); });
+  const show = () => {
+    if (!banner.isConnected && document.body) document.body.append(banner);
+    banner.hidden = sound.ready || sound.muted;
+  };
+  setInterval(show, 700);
+  show();
+}
+
 export class Sound {
   constructor() {
     this.ctx = null;
@@ -35,11 +66,25 @@ export class Sound {
     this.song = null;
     this.step = 0;
     this.nextTime = 0;
-    try { this.muted = localStorage.getItem(MUTE_KEY) === '1'; } catch { this.muted = false; }
+    // El silencio no se guarda: cada partida empieza con sonido.
+    this.muted = false;
   }
 
   /** Debe llamarse dentro de un gesto del usuario (clic/toque): política de autoplay. */
   unlock() {
+    // iPhone/iPad: que el audio suene aunque el interruptor de silencio esté activado.
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* no soportado */ }
+    if (!this.htmlUnlocked) {
+      // En iOS antiguos, reproducir un <audio> silencioso dentro del gesto cambia la
+      // sesión de audio a "reproducción" (ignora el interruptor de silencio).
+      this.htmlUnlocked = true;
+      try {
+        const a = new Audio(SILENT_WAV);
+        a.setAttribute('playsinline', '');
+        a.volume = 0;
+        a.play().catch(() => { this.htmlUnlocked = false; });
+      } catch { this.htmlUnlocked = false; }
+    }
     if (!this.ctx) {
       const Ctx = window.AudioContext || window.webkitAudioContext;
       if (!Ctx) return;
@@ -55,7 +100,16 @@ export class Sound {
       limiter.release.value = 0.15;
       this.master.connect(limiter).connect(this.ctx.destination);
     }
-    if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+    if (this.ctx.state !== 'running') {
+      this.ctx.resume().catch(() => {});
+      // Safari: un búfer vacío reproducido dentro del gesto termina de desbloquear.
+      try {
+        const src = this.ctx.createBufferSource();
+        src.buffer = this.ctx.createBuffer(1, 1, 22050);
+        src.connect(this.ctx.destination);
+        src.start(0);
+      } catch { /* opcional */ }
+    }
   }
 
   get ready() {
@@ -64,7 +118,6 @@ export class Sound {
 
   setMuted(m) {
     this.muted = m;
-    try { localStorage.setItem(MUTE_KEY, m ? '1' : '0'); } catch { /* opcional */ }
     if (this.master) this.master.gain.setTargetAtTime(m ? 0 : 0.9, this.ctx.currentTime, 0.05);
   }
 

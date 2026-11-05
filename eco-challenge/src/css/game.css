@@ -256,6 +256,11 @@
   .finale-text { transform: translate(-50%, -50%) scale(1); position: static; }
 }
 
+/* Aviso cuando el navegador mantiene el sonido bloqueado. */
+.sound-banner { position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 3000;
+  border: 0; border-radius: 999px; padding: 0.75em 1.3em; font: inherit; font-weight: 800; font-size: 1rem;
+  background: #f2c200; color: #1d2630; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); cursor: pointer; animation: pulse 1.4s ease-in-out infinite; }
+
 /* En el celular la piñata va junto al cronómetro, sin tapar las tarjetas. */
 .board-head .pinata { --pinata-size: 46px; margin: -6px 0 -14px 4px; }
 .round-top .pinata { --pinata-size: 110px; }

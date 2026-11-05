@@ -104,7 +104,9 @@ Cada banco de preguntas y cada partida pertenecen a **un solo ámbito**; la base
 
 - **Para todos (proyector y celulares):** música de espera en la sala y entre rondas, música de concurso durante la ronda, efectos de inicio/acierto/error y, en los **últimos 10 segundos**, una piñata que tiembla cada vez más con tic-tac.
 - **Gran final al acabarse el tiempo:** una **piñata gigante** aparece en el centro de la pantalla, tiembla con redoble y silbido de cohete y **revienta en pedazos** con detonación, destello, 💥, "¡TIEMPO!", confeti, lluvia de dulces, chisporroteo de fuegos artificiales, fanfarria y cornetas.
-- Botón 🔊/🔇 en la barra del instructor y en el celular (se recuerda en cada dispositivo). El navegador sólo permite sonido después del primer clic o toque (en el celular, al pulsar "¡Entrar!").
+- La piñata gigante sale en **toda ronda que termina**: por tiempo, con "Finalizar ronda" o con "Finalizar partida" (texto "¡FIN DEL JUEGO!").
+- Botón 🔊/🔇 en la barra del instructor y en el celular (no se recuerda entre partidas: cada partida empieza con sonido).
+- El navegador sólo permite sonido después de un toque: se activa al pulsar "¡Entrar!" o cualquier botón (incluidos los gestos táctiles que exige Safari en iPhone). Mientras siga bloqueado aparece el aviso **"🔊 Toca aquí para activar el sonido"**. En iPhone el sonido suena aunque el interruptor de silencio esté activado.
 - Todo el audio se sintetiza en el navegador (Web Audio API, con limitador para no distorsionar): no hay archivos de audio ni música con derechos de autor. Con "reducir movimiento" activado en el sistema, sólo se muestra el texto final.
 
 ## 2.1 Tema "Riesgos Críticos Challenge"
