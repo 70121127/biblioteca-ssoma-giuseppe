@@ -13,7 +13,10 @@
 .bin-label { font-weight: 800; font-size: 0.8em; }
 .bin-color { font-size: 0.7em; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.04em; }
 .bin-target { cursor: pointer; min-height: 76px; transition: transform 0.12s ease, box-shadow 0.12s ease; }
-.bin-target.drop-target, .has-selection .bin-target:hover { transform: scale(1.06); box-shadow: 0 0 0 4px #f2c200; }
+/* Al arrastrar se resalta el contenedor sin cambiar su tamaño: si creciera,
+   el borde "saltaría" bajo el dedo y el resaltado parpadearía. */
+.bin-target.drop-target { box-shadow: 0 0 0 5px #f2c200, 0 6px 16px rgba(0, 0, 0, 0.25); filter: brightness(1.12); }
+.has-selection .bin-target:hover { transform: scale(1.06); box-shadow: 0 0 0 4px #f2c200; }
 .has-selection .bin-target { animation: pulse 1.4s ease-in-out infinite; }
 .bin-target.bump { animation: bump 0.35s ease; }
 .bin-mini { flex-direction: row; gap: 0.4em; padding: 0.25em 0.6em; display: inline-flex; font-size: 0.9rem; }
@@ -70,6 +73,8 @@
 .drag-ghost {
   position: fixed; left: 0; top: 0; z-index: 999; pointer-events: none;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); opacity: 0.95;
+  /* La copia sigue al dedo al instante: sin transiciones ni animaciones heredadas. */
+  transition: none !important; animation: none !important; will-change: transform;
 }
 
 .bins-dock {
@@ -213,7 +218,8 @@
   100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + 260px)) scale(1) rotate(var(--rot)); opacity: 0; }
 }
 /* Posición de la piñata en el celular y en la proyección */
-.board .pinata { position: absolute; top: 44px; right: 8px; z-index: 30; --pinata-size: 72px; }
+/* En el celular la piñata va junto al cronómetro, sin tapar las tarjetas. */
+.board-head .pinata { --pinata-size: 46px; margin: -6px 0 -14px 4px; }
 .round-top .pinata { --pinata-size: 110px; }
 .sound-toggle { font-size: 1.25rem; min-width: 44px; }
 .player-head .sound-toggle { margin-left: auto; min-height: 34px; padding: 0.2em 0.5em; }

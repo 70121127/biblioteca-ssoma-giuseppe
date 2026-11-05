@@ -103,7 +103,7 @@ Cada banco de preguntas y cada partida pertenecen a **un solo ámbito**; la base
 ### Sonido y piñata
 
 - **Pantalla proyectada (instructor):** música de espera en la sala y entre rondas, música de concurso durante la ronda y, en los **últimos 10 segundos**, una piñata que tiembla cada vez más con tic-tac; al llegar a 0 **revienta** con sonido, 💥, dulces y confeti.
-- **Celulares:** la misma piñata y efectos cortos (inicio, acierto, error, tic-tac y explosión), **sin música de fondo** para no saturar la sala.
+- **Celulares:** la piñata aparece junto al cronómetro y sólo suena la **explosión** (más fuerte, con limitador para no distorsionar); sin música ni tic-tac, para no saturar la sala.
 - Botón 🔊/🔇 en la barra del instructor y en el celular (se recuerda en cada dispositivo). El navegador sólo permite sonido después del primer clic o toque.
 - Todo el audio se sintetiza en el navegador (Web Audio API): no hay archivos de audio ni música con derechos de autor. Con "reducir movimiento" activado en el sistema, la piñata no se anima.
 
