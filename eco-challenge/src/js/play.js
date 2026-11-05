@@ -6,11 +6,16 @@ import { ServerClock, roundTimer, formatSeconds } from './clock.js';
 import { joinGameChannel } from './realtime.js';
 import { attachClassifier } from './dragdrop.js';
 import { normalizeAlias, isValidAlias, isValidCode, shuffle } from './validation.js';
+import { Sound, Pinata, soundToggle } from './fx.js';
 
 const STORAGE_KEY = 'eco.player';
 const app = $('#app');
 const netBanner = $('#net-status');
 const clock = new ServerClock();
+// En el celular sólo efectos cortos (sin música de fondo: 200 celulares a la vez
+// serían ruido); la música suena en la pantalla proyectada del instructor.
+const sound = new Sound();
+for (const ev of ['pointerdown', 'keydown']) document.addEventListener(ev, () => sound.unlock(), { capture: true });
 
 let session = loadSession();
 let state = null;
@@ -184,7 +189,8 @@ function header() {
   return h('header', { class: 'player-head' },
     h('span', { class: 'chip' }, `👤 ${state.player.alias}`),
     h('span', { class: 'chip' }, `🔢 ${state.game.code}`),
-    h('span', { class: 'chip' }, `📍 ${state.game.scope_name || state.game.scope}`));
+    h('span', { class: 'chip' }, `📍 ${state.game.scope_name || state.game.scope}`),
+    soundToggle(sound));
 }
 
 function renderLobby() {
@@ -251,11 +257,12 @@ function renderBoard() {
     h('div', { class: 'board-head' },
       h('div', { class: 'timer' }, h('span', { class: 'timer-icon', 'aria-hidden': 'true' }, '⏱️'), timerText),
       h('span', { class: 'chip' }, `Ronda ${r.round_no}/${state.game.total_rounds}`),
-      progress, score),
+      progress, score, soundToggle(sound)),
     timerBar, feedback, grid, bins, overlay);
 
   clear(app).append(boardEl);
-  board = { r, timerText, timerBar, progress, score, feedback, overlay, cards, el: boardEl, locked: false, lastPhase: null };
+  const pinata = new Pinata(boardEl, { size: 72 });
+  board = { r, timerText, timerBar, progress, score, feedback, overlay, cards, el: boardEl, locked: false, lastPhase: null, pinata, lastTickSec: null };
   attachClassifier({ board: boardEl, isLocked: () => board?.locked, onClassify: (itemId, bin, card) => sendAnswer(itemId, bin, card) });
   for (const [id, res] of results) markCard(id, res);
   for (const [id, bin] of outbox) markSending(id, bin);
@@ -307,6 +314,8 @@ async function deliver(itemId, bin, roundId) {
     results.set(itemId, res);
     markCard(itemId, res);
     showFeedback(res);
+    if (res.status === 'registrado' && res.is_correct === true) sound.correct();
+    else if (res.status === 'registrado' && res.is_correct === false) sound.wrong();
     updateBoard();
     if (res.status === 'duplicado') toast('Esa respuesta ya estaba registrada.', 'info', 2000);
   } catch (err) {
@@ -392,7 +401,23 @@ function tick() {
     // El servidor cierra la ronda al vencer el tiempo (+1 s de margen).
     scheduleRefresh(1500);
   }
-  if (t.phase === 'running' && board.lastPhase === 'leadin') board.feedback.textContent = `¡Ya! Clasifica los ${words().items}.`;
+  if (t.phase === 'running' && board.lastPhase === 'leadin') {
+    board.feedback.textContent = `¡Ya! Clasifica los ${words().items}.`;
+    sound.start();
+  }
+  // Últimos 10 s: aparece la piñata, tiembla cada vez más y suena el tic-tac.
+  if (t.phase === 'running' && t.remainingMs <= 10000) {
+    board.pinata.shake((10000 - t.remainingMs) / 10000);
+    const sec = Math.ceil(t.remainingMs / 1000);
+    if (sec !== board.lastTickSec) { board.lastTickSec = sec; sound.tick(sec); }
+  } else if (t.phase !== 'ended') {
+    board.pinata.hide();
+  }
+  // ¡Tiempo! La piñata revienta (sólo si la ronda terminó por tiempo).
+  if (t.phase === 'ended' && state.round.status === 'running' && !board.pinata.burstDone) {
+    board.pinata.burst();
+    sound.burst();
+  }
   board.lastPhase = t.phase;
 }
 

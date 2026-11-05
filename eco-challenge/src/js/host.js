@@ -8,11 +8,15 @@ import { ServerClock, roundTimer, formatSeconds } from './clock.js';
 import { joinGameChannel } from './realtime.js';
 import { currentStaff, renderLogin, logout } from './auth.js';
 import { toCsv } from './csv.js';
+import { Sound, Pinata, soundToggle } from './fx.js';
 
 const GAME_KEY = 'eco.host.game';
 const app = $('#app');
 const nav = $('#nav');
 const clock = new ServerClock();
+const sound = new Sound();
+// El navegador sólo permite sonido después de un clic o toque.
+for (const ev of ['pointerdown', 'keydown']) document.addEventListener(ev, () => sound.unlock(), { capture: true });
 
 let staff = null;
 let gameId = null;
@@ -51,10 +55,12 @@ function renderNav() {
     h('button', { class: 'btn btn-ghost', onclick: () => openHistory() }, '🗂️ Historial'),
     h('a', { class: 'btn btn-ghost', href: 'admin.html' }, '🖼️ Banco de preguntas'),
     h('span', { class: 'muted small nav-user' }, `${staff.user.email} · ${staff.role}`),
+    soundToggle(sound),
     h('button', { class: 'btn btn-ghost', onclick: logout }, 'Salir'));
 }
 
 function stopGameView() {
+  sound.stopMusic();
   clearTimeout(pollTimer);
   channel?.close();
   channel = null;
@@ -380,8 +386,9 @@ function renderGame() {
       return h('figure', { class: 'host-item' }, wasteImage(it.image_url, it.name), h('figcaption', {}, it.name), count);
     }));
     view.overlay = h('div', { class: 'host-overlay', hidden: true });
+    view.pinata = new Pinata(h('div'), { size: 110 });
     body.push(
-      h('div', { class: 'round-top' }, view.timer, view.progress,
+      h('div', { class: 'round-top' }, view.timer, view.pinata.el, view.progress,
         h('label', { class: 'toggle' }, h('input', { type: 'checkbox', checked: showLiveRanking,
           onchange: (e) => { showLiveRanking = e.target.checked; renderGame(); } }), ' Mostrar ranking en vivo'),
         h('div', { class: 'side-join' }, qrBlock(g.code, false))),
@@ -455,6 +462,21 @@ function updateGame() {
     view.progress.textContent = `📨 ${r.answers_total}/${expected} respuestas · ✅ ${r.players_done}/${players} completaron`;
     for (const it of r.items) view.itemCounts.get(it.id).textContent = String(it.answers);
     if (view.ranking) clear(view.ranking).append(leaderboardTable(hs.leaderboard));
+    // Últimos 10 s: la piñata tiembla cada vez más y suena el tic-tac.
+    if (t.phase === 'running' && t.remainingMs <= 10000) {
+      view.pinata.shake((10000 - t.remainingMs) / 10000);
+      const sec = Math.ceil(t.remainingMs / 1000);
+      if (sec !== view.lastTickSec) { view.lastTickSec = sec; sound.tick(sec); }
+    } else if (t.phase !== 'ended') {
+      view.pinata.hide();
+    }
+    if (t.phase === 'running' && view.lastPhase === 'leadin') sound.start();
+    view.lastPhase = t.phase;
+    // Se acabó el tiempo: ¡la piñata revienta!
+    if (t.phase === 'ended' && !view.pinata.burstDone && r.status === 'running') {
+      view.pinata.burst();
+      sound.burst();
+    }
     if (t.phase === 'ended' && !view.endScheduled) {
       view.endScheduled = true;
       clearTimeout(pollTimer);
@@ -463,10 +485,24 @@ function updateGame() {
     view.overlay.hidden = t.phase !== 'paused';
     if (t.phase === 'paused') clear(view.overlay).append(h('strong', {}, '⏸️ Ronda en pausa'));
   }
+  updateMusic();
   if (hs.game.status === 'lobby' || hs.game.status === 'between_rounds') {
     const panel = app.querySelector('.players-panel');
     if (panel) panel.replaceWith(playersPanel());
   }
+}
+
+// Música de fondo según el momento: espera en sala y entre rondas, música de
+// concurso durante la ronda (se apaga en pausa y en los últimos 10 s: tic-tac).
+function updateMusic() {
+  const st = hs?.game.status;
+  let want = null;
+  if (st === 'lobby' || st === 'between_rounds') want = 'espera';
+  else if (st === 'running' && hs.round) {
+    const t = roundTimer(hs.round, clock.now());
+    if (t.phase === 'running' && t.remainingMs > 10000) want = 'ronda';
+  }
+  sound.music(want);
 }
 
 // ---------------------------------------------------------------------
