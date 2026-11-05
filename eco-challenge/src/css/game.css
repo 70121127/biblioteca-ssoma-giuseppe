@@ -184,3 +184,39 @@
 /* La explicación no debe empujar el tablero fuera de la pantalla. */
 .feedback { max-height: 5.2em; overflow-y: auto; overscroll-behavior: contain; }
 .theme-riesgos .feedback { font-size: 0.82rem; }
+
+/* ---------- Piñata y explosión de dulces ---------- */
+.pinata { --pinata-size: 120px; --shake: 0; --shake-speed: 0.5s; width: var(--pinata-size); flex: none; transform-origin: 50% 0; animation: pinata-swing var(--shake-speed) ease-in-out infinite alternate; pointer-events: none; }
+.pinata svg { width: 100%; height: auto; display: block; overflow: visible; }
+.pinata-critical .pinata-body { animation: pinata-jitter 0.09s linear infinite; }
+.pinata.pinata-gone { animation: pinata-pop 0.35s ease-out forwards; }
+@keyframes pinata-swing {
+  from { transform: rotate(calc(-4deg - var(--shake) * 22deg)); }
+  to   { transform: rotate(calc(4deg + var(--shake) * 22deg)); }
+}
+@keyframes pinata-jitter {
+  0% { transform: translate(0, 0); } 25% { transform: translate(-3px, 2px); }
+  50% { transform: translate(3px, -2px); } 75% { transform: translate(-2px, -3px); } 100% { transform: translate(0, 0); }
+}
+@keyframes pinata-pop {
+  0% { transform: scale(1); opacity: 1; } 40% { transform: scale(1.35); opacity: 1; } 100% { transform: scale(0.2); opacity: 0; }
+}
+.burst-layer { position: fixed; inset: 0; pointer-events: none; z-index: 2000; overflow: hidden; }
+.burst-piece, .burst-confetti { position: fixed; transform: translate(-50%, -50%); animation: burst-fly 1.6s cubic-bezier(0.15, 0.7, 0.35, 1) forwards; }
+.burst-piece { font-size: 1.7rem; }
+.burst-boom { position: fixed; font-size: 5rem; transform: translate(-50%, -50%); animation: burst-boom 0.6s ease-out forwards; }
+@keyframes burst-boom { 0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; } 60% { transform: translate(-50%, -50%) scale(1.6); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(2); opacity: 0; } }
+.burst-confetti { width: 10px; height: 14px; border-radius: 2px; }
+@keyframes burst-fly {
+  0%   { transform: translate(-50%, -50%) scale(0.4) rotate(0); opacity: 1; }
+  70%  { opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + 260px)) scale(1) rotate(var(--rot)); opacity: 0; }
+}
+/* Posición de la piñata en el celular y en la proyección */
+.board .pinata { position: absolute; top: 44px; right: 8px; z-index: 30; --pinata-size: 72px; }
+.round-top .pinata { --pinata-size: 110px; }
+.sound-toggle { font-size: 1.25rem; min-width: 44px; }
+.player-head .sound-toggle { margin-left: auto; min-height: 34px; padding: 0.2em 0.5em; }
+@media (prefers-reduced-motion: reduce) {
+  .pinata, .pinata-critical .pinata-body { animation: none; }
+}
