@@ -6,14 +6,14 @@ import { ServerClock, roundTimer, formatSeconds } from './clock.js';
 import { joinGameChannel } from './realtime.js';
 import { attachClassifier } from './dragdrop.js';
 import { normalizeAlias, isValidAlias, isValidCode, shuffle } from './validation.js';
-import { Sound, Pinata, soundToggle } from './fx.js';
+import { Sound, Pinata, soundToggle, pinataFinale } from './fx.js';
 
 const STORAGE_KEY = 'eco.player';
 const app = $('#app');
 const netBanner = $('#net-status');
 const clock = new ServerClock();
-// En el celular sólo efectos cortos (sin música de fondo: 200 celulares a la vez
-// serían ruido); la música suena en la pantalla proyectada del instructor.
+// Sonido completo también en el celular: música de espera y de ronda, tic-tac,
+// efectos y gran final (cada participante puede silenciar con 🔊/🔇).
 const sound = new Sound();
 for (const ev of ['pointerdown', 'keydown']) document.addEventListener(ev, () => sound.unlock(), { capture: true });
 
@@ -99,6 +99,7 @@ function connectChannel() {
 }
 
 function leave(message) {
+  sound.stopMusic();
   saveSession(null);
   channel?.close();
   channel = null;
@@ -176,6 +177,17 @@ function render() {
     else renderRoundResults();
   }
   if (board) updateBoard();
+  else updateMusic(null);
+}
+
+// Música según el momento: espera (sala, entre rondas y final) y concurso durante
+// la ronda; en los últimos 10 s se apaga para dejar el tic-tac.
+function updateMusic(t) {
+  const st = state?.game?.status;
+  let want = null;
+  if (st === 'lobby' || st === 'between_rounds') want = 'espera';
+  else if (t && t.phase === 'running' && t.remainingMs > 10000) want = 'ronda';
+  sound.music(want);
 }
 
 function words() {
@@ -314,6 +326,8 @@ async function deliver(itemId, bin, roundId) {
     results.set(itemId, res);
     markCard(itemId, res);
     showFeedback(res);
+    if (res.status === 'registrado' && res.is_correct === true) sound.correct();
+    else if (res.status === 'registrado' && res.is_correct === false) sound.wrong();
     updateBoard();
     if (res.status === 'duplicado') toast('Esa respuesta ya estaba registrada.', 'info', 2000);
   } catch (err) {
@@ -401,19 +415,22 @@ function tick() {
   }
   if (t.phase === 'running' && board.lastPhase === 'leadin') {
     board.feedback.textContent = `¡Ya! Clasifica los ${words().items}.`;
+    sound.start();
   }
-  // Últimos 10 s: aparece la piñata junto al cronómetro y tiembla cada vez más
-  // (en el celular sin tic-tac: la música y el conteo suenan en el proyector).
+  // Últimos 10 s: la piñata junto al cronómetro tiembla cada vez más, con tic-tac.
   if (t.phase === 'running' && t.remainingMs <= 10000) {
     board.pinata.shake((10000 - t.remainingMs) / 10000);
+    const sec = Math.ceil(t.remainingMs / 1000);
+    if (sec !== board.lastTickSec) { board.lastTickSec = sec; sound.tick(sec); }
   } else if (t.phase !== 'ended') {
     board.pinata.hide();
   }
-  // ¡Tiempo! La piñata revienta con la "bombita" (único sonido en el celular).
+  // ¡Tiempo! Gran final: piñata gigante que revienta en toda la pantalla.
   if (t.phase === 'ended' && state.round.status === 'running' && !board.pinata.burstDone) {
     board.pinata.burst();
-    sound.burst(1.6);
+    pinataFinale(sound);
   }
+  updateMusic(t);
   board.lastPhase = t.phase;
 }
 

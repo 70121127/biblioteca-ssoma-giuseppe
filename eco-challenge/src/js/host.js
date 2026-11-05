@@ -8,7 +8,7 @@ import { ServerClock, roundTimer, formatSeconds } from './clock.js';
 import { joinGameChannel } from './realtime.js';
 import { currentStaff, renderLogin, logout } from './auth.js';
 import { toCsv } from './csv.js';
-import { Sound, Pinata, soundToggle } from './fx.js';
+import { Sound, Pinata, soundToggle, pinataFinale } from './fx.js';
 
 const GAME_KEY = 'eco.host.game';
 const app = $('#app');
@@ -475,7 +475,7 @@ function updateGame() {
     // Se acabó el tiempo: ¡la piñata revienta!
     if (t.phase === 'ended' && !view.pinata.burstDone && r.status === 'running') {
       view.pinata.burst();
-      sound.burst();
+      pinataFinale(sound);
     }
     if (t.phase === 'ended' && !view.endScheduled) {
       view.endScheduled = true;
