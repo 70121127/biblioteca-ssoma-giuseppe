@@ -194,6 +194,202 @@ export class Sound {
     const t = this.ctx.currentTime;
     [0, 4, 7, 12].forEach((n, i) => this._note(hz(n + 12), t + i * 0.08, 0.15, 'square', 0.05));
   }
+
+  /** Nota con timbre de trompeta (diente de sierra filtrado). */
+  _brass(freq, t, dur, gain) {
+    const o = this.ctx.createOscillator();
+    const f = this.ctx.createBiquadFilter();
+    const g = this.ctx.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(freq, t);
+    f.type = 'lowpass';
+    f.frequency.setValueAtTime(900, t);
+    f.frequency.linearRampToValueAtTime(3200, t + 0.06);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(gain, t + 0.03);
+    g.gain.setValueAtTime(gain, t + Math.max(0.04, dur - 0.08));
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(f).connect(g).connect(this.master);
+    o.start(t);
+    o.stop(t + dur + 0.02);
+  }
+
+  /**
+   * Gran final festivo (dura ~3 s): silbido de cohete y redoble, DETONACIÓN,
+   * chisporroteo de fuegos artificiales, lluvia de campanitas, fanfarria y cornetas.
+   * `explodeAt` = segundos hasta la detonación (sincronizado con la animación).
+   */
+  finale(explodeAt = 0.7) {
+    if (!this.ready) return;
+    const t0 = this.ctx.currentTime;
+    const tb = t0 + explodeAt;
+    // Silbido ascendente
+    const w = this.ctx.createOscillator();
+    const wg = this.ctx.createGain();
+    w.type = 'sine';
+    w.frequency.setValueAtTime(500, t0);
+    w.frequency.exponentialRampToValueAtTime(2600, tb);
+    wg.gain.setValueAtTime(0.0001, t0);
+    wg.gain.exponentialRampToValueAtTime(0.09, t0 + 0.1);
+    wg.gain.exponentialRampToValueAtTime(0.0001, tb);
+    w.connect(wg).connect(this.master);
+    w.start(t0);
+    w.stop(tb + 0.02);
+    // Redoble que acelera
+    for (let x = 0; x < explodeAt - 0.05; x += 0.07 - (x / explodeAt) * 0.035) {
+      this._noise(t0 + x, 0.05, { gain: 0.25 + x * 0.4, freq: 220, q: 0.9 });
+    }
+    // DETONACIÓN: dos golpes graves superpuestos + estallido
+    for (const [f0, gain] of [[150, 1], [90, 0.9]]) {
+      const o = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(f0, tb);
+      o.frequency.exponentialRampToValueAtTime(30, tb + 0.6);
+      g.gain.setValueAtTime(gain, tb);
+      g.gain.exponentialRampToValueAtTime(0.0001, tb + 0.7);
+      o.connect(g).connect(this.master);
+      o.start(tb);
+      o.stop(tb + 0.75);
+    }
+    this._noise(tb, 0.9, { gain: 1, freq: 1400, q: 0.5, type: 'lowpass' });
+    this._noise(tb, 0.35, { gain: 0.7, freq: 2500, q: 0.7 });
+    // Chisporroteo de fuegos artificiales
+    for (let i = 0; i < 28; i++) {
+      this._noise(tb + 0.15 + Math.random() * 1.6, 0.04 + Math.random() * 0.05,
+        { gain: 0.25 + Math.random() * 0.35, freq: 3000 + Math.random() * 4000, q: 1.5, type: 'highpass' });
+    }
+    // Lluvia de dulces (campanitas)
+    [24, 28, 31, 36, 31, 33, 36, 40, 43, 40].forEach((n, i) =>
+      this._note(hz(n), tb + 0.2 + i * 0.07 + Math.random() * 0.02, 0.3, 'triangle', 0.08));
+    // Fanfarria triunfal
+    const fan = [[12, 0.13], [16, 0.13], [19, 0.13], [24, 0.3], [19, 0.13], [24, 0.8]];
+    let ft = tb + 0.45;
+    for (const [n, d] of fan) {
+      this._brass(hz(n), ft, d, 0.12);
+      this._brass(hz(n - 12), ft, d, 0.06);
+      ft += d;
+    }
+    // Acorde final
+    [12, 16, 19].forEach((n) => this._brass(hz(n), ft, 0.9, 0.06));
+    // Cornetas de fiesta (glissando)
+    for (const [start, f1, f2] of [[tb + 0.35, 330, 520], [tb + 1.2, 300, 480], [tb + 1.8, 360, 560]]) {
+      const o = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(f1, start);
+      o.frequency.exponentialRampToValueAtTime(f2, start + 0.35);
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(0.06, start + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.45);
+      o.connect(g).connect(this.master);
+      o.start(start);
+      o.stop(start + 0.5);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------
+// Gran final: piñata gigante en el centro de la pantalla que revienta
+// ---------------------------------------------------------------------
+// Estrella dividida en piezas (5 puntas + centro + flecos) para que vuelen por separado.
+const STAR_CENTER = [60, 62];
+const STAR_ARMS = [
+  { pts: '60,20 48,48 72,48', color: '#e83e8c', tip: [60, 20] },
+  { pts: '102,50 72,48 78,70', color: '#ffc107', tip: [102, 50] },
+  { pts: '87,100 78,70 60,83', color: '#20c997', tip: [87, 100] },
+  { pts: '33,100 60,83 42,70', color: '#fd7e14', tip: [33, 100] },
+  { pts: '18,50 42,70 48,48', color: '#6f42c1', tip: [18, 50] },
+];
+
+function bigPinataSvg() {
+  const arms = STAR_ARMS.map((a, i) => {
+    const dx = a.tip[0] - STAR_CENTER[0];
+    const dy = a.tip[1] - STAR_CENTER[1];
+    const len = Math.hypot(dx, dy);
+    return `<g class="finale-piece" style="--fx:${((dx / len) * 70).toFixed(1)}vmin;--fy:${((dy / len) * 70).toFixed(1)}vmin;--fr:${(i % 2 ? 1 : -1) * (200 + i * 60)}deg">
+      <polygon points="${a.pts}" fill="${a.color}" stroke="#4a1030" stroke-width="2.5" stroke-linejoin="round"/></g>`;
+  }).join('');
+  return `<svg viewBox="0 0 120 150" aria-hidden="true">
+    <line class="finale-rope" x1="60" y1="-40" x2="60" y2="22" stroke="#6b4e1e" stroke-width="2.5"/>
+    ${arms}
+    <g class="finale-piece" style="--fx:0vmin;--fy:-10vmin;--fr:90deg">
+      <polygon points="72,48 78,70 60,83 42,70 48,48" fill="#ffd54f" stroke="#4a1030" stroke-width="2.5" stroke-linejoin="round"/>
+      <circle cx="60" cy="63" r="8" fill="#20c997"/></g>
+    <g class="finale-piece" style="--fx:-30vmin;--fy:60vmin;--fr:-140deg">
+      <path d="M33 100 l-6 30 M42 96 l-2 34 M51 92 l-1 34" stroke="#20c997" stroke-width="5" stroke-linecap="round"/></g>
+    <g class="finale-piece" style="--fx:30vmin;--fy:60vmin;--fr:140deg">
+      <path d="M69 92 l1 34 M78 96 l2 34 M87 100 l6 30" stroke="#fd7e14" stroke-width="5" stroke-linecap="round"/></g>
+  </svg>`;
+}
+
+const RAIN = ['🍬', '🍭', '🍫', '🍬', '⭐', '🍭', '🎉', '🍬', '🎊', '🍩'];
+
+/**
+ * Piñata gigante: aparece en el centro, tiembla, revienta en pedazos con
+ * destello, 💥, confeti, lluvia de dulces y el texto del final. Con sonido.
+ */
+export function pinataFinale(sound, { text = '¡TIEMPO!' } = {}) {
+  const explodeAt = 0.7;
+  sound?.finale(explodeAt);
+  const layer = document.createElement('div');
+  layer.className = 'finale';
+  layer.setAttribute('aria-hidden', 'true');
+  if (reduceMotion()) {
+    layer.innerHTML = '<div class="finale-text"></div>';
+    layer.firstChild.textContent = `🎉 ${text}`;
+    document.body.append(layer);
+    setTimeout(() => layer.remove(), 2500);
+    return;
+  }
+  layer.innerHTML = `<div class="finale-flash"></div><div class="finale-pinata">${bigPinataSvg()}</div><div class="finale-text"></div>`;
+  layer.querySelector('.finale-text').textContent = text;
+  document.body.append(layer);
+
+  setTimeout(() => {
+    layer.classList.add('boom');
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight * 0.45;
+    const big = Math.max(window.innerWidth, window.innerHeight);
+    const boom = document.createElement('span');
+    boom.className = 'burst-boom finale-boom';
+    boom.textContent = '💥';
+    boom.style.left = `${cx}px`;
+    boom.style.top = `${cy}px`;
+    layer.append(boom);
+    // Explosión radial de confeti y dulces
+    const n = window.innerWidth < 600 ? 70 : 140;
+    for (let i = 0; i < n; i++) {
+      const p = document.createElement('span');
+      const isCandy = i % 4 === 0;
+      p.className = isCandy ? 'burst-piece' : 'burst-confetti';
+      if (isCandy) p.textContent = PIECES[i % PIECES.length];
+      else p.style.background = CONFETTI[i % CONFETTI.length];
+      const angle = Math.random() * Math.PI * 2;
+      const dist = big * (0.2 + Math.random() * 0.5);
+      p.style.left = `${cx}px`;
+      p.style.top = `${cy}px`;
+      p.style.setProperty('--dx', `${Math.cos(angle) * dist}px`);
+      p.style.setProperty('--dy', `${Math.sin(angle) * dist * 0.75 - 60}px`);
+      p.style.setProperty('--rot', `${Math.round(Math.random() * 900 - 450)}deg`);
+      p.style.animationDuration = `${1.4 + Math.random() * 0.9}s`;
+      layer.append(p);
+    }
+    // Lluvia de dulces desde arriba
+    const rain = window.innerWidth < 600 ? 22 : 40;
+    for (let i = 0; i < rain; i++) {
+      const r = document.createElement('span');
+      r.className = 'finale-rain';
+      r.textContent = RAIN[i % RAIN.length];
+      r.style.left = `${Math.random() * 100}vw`;
+      r.style.animationDelay = `${0.15 + Math.random() * 1.1}s`;
+      r.style.animationDuration = `${1.3 + Math.random() * 1.2}s`;
+      r.style.setProperty('--rot', `${Math.round(Math.random() * 720 - 360)}deg`);
+      layer.append(r);
+    }
+  }, explodeAt * 1000);
+
+  setTimeout(() => layer.remove(), 4200);
 }
 
 // ---------------------------------------------------------------------
